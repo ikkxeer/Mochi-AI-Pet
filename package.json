@@ -1,0 +1,29 @@
+{
+  "name": "mochi-pixel-pet",
+  "version": "3.0.0",
+  "description": "Asistente virtual pixel art con IA local (Ollama)",
+  "main": "main.js",
+  "author": "Mochi",
+  "scripts": {
+    "start": "electron .",
+    "dist": "npx --yes electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "build": {
+    "appId": "com.mochi.pixelpet",
+    "productName": "Mochi",
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "ollama-setup.js",
+      "static-server.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
