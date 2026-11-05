@@ -1,4 +1,4 @@
-# Mochi · asistente con IA local
+# Mochi · asistente pixel art con IA local
 
 Una gatita pixel art a la que le preguntas cosas. Responde con un modelo que corre
 en tu propio ordenador a través de [Ollama](https://ollama.com).
@@ -106,6 +106,8 @@ estirarte, beber agua o descansar la vista. Si te vas un rato, se duerme; cuando
 - **Arrastra un archivo de texto o código** (`.txt`, `.md`, `.py`, `.js`, `.json`, `.csv`…) sobre
   Mochi, o un trozo de texto seleccionado. Se lo «come» y te ofrece **Resumir, Explicar, Traducir
   o Corregir**.
+- Si arrastrar no funciona en tu equipo, tienes otras dos vías: el botón del **clip** (elige un archivo) o copiar el archivo en el Explorador y pegarlo con **Ctrl+V** en la caja de texto. Suelta siempre sobre Mochi o el chat, no sobre la barra rosa de arriba (esa zona solo sirve para mover la ventana). Si Mochi está abierta como administrador, Windows no deja arrastrar desde el Explorador normal.
+- Acepta texto y código aunque la extensión sea rara; rechaza PDF, Word, imágenes y archivos de más de ~400 KB.
 - El botón del **portapapeles** (junto a «nueva conversación») hace lo mismo con lo último que
   hayas copiado.
 - Solo se envía a tu IA local; nada sale de tu ordenador.
