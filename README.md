@@ -1,4 +1,4 @@
-# Mochi · asistente pixel art con IA local
+# Mochi · asistente con IA local
 
 Una gatita pixel art a la que le preguntas cosas. Responde con un modelo que corre
 en tu propio ordenador a través de [Ollama](https://ollama.com).
