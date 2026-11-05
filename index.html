@@ -478,6 +478,8 @@
       <div class="row">
         <span id="status" title="Estado de Ollama"></span>
         <select id="model" title="Modelo"></select>
+        <input type="file" id="filepick" hidden>
+        <button class="ibtn" id="attach" title="Elegir un archivo de texto o código para que Mochi lo lea"></button>
         <button class="ibtn" id="clip" title="Preguntar sobre lo que has copiado (o arrastra un archivo sobre Mochi)"></button>
         <button class="ibtn" id="clear" title="Nueva conversación"></button>
       </div>
@@ -546,6 +548,7 @@ const ICONS = {
   send: ["xx.....", "xxxx...", "xxxxxx.", "xxxxxxx", "xxxxxx.", "xxxx...", "xx....."],
   stop: ["xxxxx", "xxxxx", "xxxxx", "xxxxx", "xxxxx"],
   star: ["...x...", "...x...", "xxxxxxx", ".xxxxx.", "..xxx..", ".xx.xx.", "xx...xx"],
+  attach: ["..xxxx.", ".x....x", "x..xx.x", "x.x..xx", "x.x..x.", ".x.xx..", "..x...."],
   clipb: ["..xxx..", "xxxxxxx", "x.....x", "x.xxx.x", "x.....x", "x.xxx.x", "xxxxxxx"],
 };
 const icon = (name, cell = 2) => pxSvg(ICONS[name], { x: "currentColor" }, cell);
@@ -555,7 +558,7 @@ function setIcon(id, name, cell = 2) { $(id).innerHTML = icon(name, cell); }
   $("ico-heart").innerHTML = pxSvg(ICONS.heart, { x: "#ffffff" }, 2);
   setIcon("b-skin", "skin"); setIcon("b-pin", "pin"); setIcon("b-mini", "mini");
   setIcon("min", "min"); setIcon("close", "close"); setIcon("b-expand", "chat"); setIcon("b-close2", "close");
-  setIcon("clear", "plus"); setIcon("send", "send", 3); setIcon("b-life", "star"); setIcon("clip", "clipb");
+  setIcon("clear", "plus"); setIcon("send", "send", 3); setIcon("b-life", "star"); setIcon("clip", "clipb"); setIcon("attach", "attach");
   setIcon("b-mem", "book"); setIcon("mem-add", "plus");
   setIcon("t-ball", "ball"); setIcon("t-fish", "fish");
   const ink = "#3b2a4a", w = "#ffffff";
@@ -3578,22 +3581,43 @@ async function askClipboard() {
   if (!text) { say("No veo nada copiado...", 1700); sysMsg("El portapapeles está vacío (o no es texto)."); return; }
   offerContext("portapapeles", text, "copiado");
 }
-function hasPayload(e) { const t = e.dataTransfer && e.dataTransfer.types; return !!t && [...t].some((x) => x === "Files" || x === "text/plain"); }
-winEl.addEventListener("dragenter", (e) => { if (hasPayload(e)) { e.preventDefault(); stage.classList.add("dropping"); } });
-winEl.addEventListener("dragover", (e) => { if (hasPayload(e)) { e.preventDefault(); stage.classList.add("dropping"); } });
-winEl.addEventListener("dragleave", (e) => { if (!e.relatedTarget) stage.classList.remove("dropping"); });
-winEl.addEventListener("drop", async (e) => {
-  e.preventDefault(); stage.classList.remove("dropping");
+// Acepta archivos de texto/código conocidos y, si la extensión es rara, cualquier cosa que no sea binaria
+async function readDroppedFile(f) {
+  const known = TEXT_EXT.test(f.name) || (f.type || "").startsWith("text/") || /json|xml|javascript/.test(f.type || "");
+  if (!known && /^(image|audio|video)\//.test(f.type || "")) return { err: "Las imágenes, el audio y el vídeo aún no los sé leer" };
+  if (f.size > 400 * 1024) return { err: "Uf, es muy grande para mí (máximo ~400 KB)" };
+  let text = "";
+  try { text = await f.text(); } catch { return { err: "No he podido leerlo..." }; }
+  if (!known && (text.includes("\u0000") || (text.match(/\uFFFD/g) || []).length > 8)) return { err: "Solo sé leer archivos de texto y código (nada de PDF, Word o imágenes)" };
+  if (!text.trim()) return { err: "Está vacío..." };
+  return { text };
+}
+async function handleFile(f) {
+  const r = await readDroppedFile(f);
+  if (r.err) { Sfx.sad(); say(r.err, 3000); express({ eyes: "sad", mouth: "flat" }, 1200); sysMsg(r.err + ".", true); return; }
+  offerContext(f.name, r.text, "archivo");
+}
+const hasPayload = (e) => { const t = e.dataTransfer && e.dataTransfer.types; return !!t && [...t].some((x) => x === "Files" || x === "text/plain"); };
+const dragOk = (e) => { if (!hasPayload(e)) return; e.preventDefault(); try { e.dataTransfer.dropEffect = "copy"; } catch {} stage.classList.add("dropping"); };
+// En toda la ventana (y no solo en una zona) para que el arrastre nunca quede "prohibido"
+for (const ev of ["dragenter", "dragover"]) { window.addEventListener(ev, dragOk, true); document.addEventListener(ev, dragOk, true); }
+window.addEventListener("dragleave", (e) => { if (!e.relatedTarget) stage.classList.remove("dropping"); }, true);
+const onDrop = async (e) => {
+  if (!hasPayload(e)) return;
+  e.preventDefault(); e.stopPropagation(); stage.classList.remove("dropping");
   const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if (f) {
-    if (!(TEXT_EXT.test(f.name) || (f.type || "").startsWith("text/"))) { Sfx.sad(); say("Solo sé leer texto y código por ahora", 2200); express({ eyes: "sad", mouth: "flat" }, 1200); return; }
-    if (f.size > 400 * 1024) { Sfx.sad(); say("Uf, es muy grande para mí", 2200); return; }
-    try { offerContext(f.name, await f.text(), "archivo"); } catch { say("No he podido leerlo...", 1800); }
-    return;
-  }
+  if (f) return handleFile(f);
   const txt = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
   if (txt.trim()) offerContext("texto", txt.trim(), "texto");
+};
+window.addEventListener("drop", onDrop, true);
+// También por otras vías: pegar un archivo copiado (Ctrl+V) o elegirlo con el botón del clip
+promptEl.addEventListener("paste", (e) => {
+  const f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
+  if (f) { e.preventDefault(); handleFile(f); }
 });
+$("attach").onclick = () => $("filepick").click();
+$("filepick").onchange = (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) handleFile(f); };
 
 /* ---- Cuidados desde el panel ---- */
 function cuddle() {
